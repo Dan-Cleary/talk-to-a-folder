@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { captureSessionFromUrl } from "./lib/session";
 import { signOut, startGoogleSignIn, useCurrentUser } from "./lib/auth";
+import { FolderEntry } from "./components/FolderEntry";
 
 export default function App() {
   const [booted, setBooted] = useState(false);
@@ -64,12 +65,3 @@ function Home() {
   );
 }
 
-function FolderEntry() {
-  return (
-    <div className="max-w-xl w-full space-y-3">
-      <p className="text-sm text-[var(--color-muted)]">
-        Folder paste UI lands next. Auth works.
-      </p>
-    </div>
-  );
-}

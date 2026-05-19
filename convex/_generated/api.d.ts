@@ -9,7 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as folders from "../folders.js";
 import type * as http from "../http.js";
+import type * as lib_drive from "../lib/drive.js";
+import type * as lib_driveUrl from "../lib/driveUrl.js";
 
 import type {
   ApiFromModules,
@@ -19,7 +22,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  folders: typeof folders;
   http: typeof http;
+  "lib/drive": typeof lib_drive;
+  "lib/driveUrl": typeof lib_driveUrl;
 }>;
 
 /**
