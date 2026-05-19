@@ -1,0 +1,92 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  users: defineTable({
+    email: v.string(),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    googleAccessToken: v.optional(v.string()),
+    googleRefreshToken: v.optional(v.string()),
+    googleTokenExpiresAt: v.optional(v.number()),
+  }).index("by_email", ["email"]),
+
+  folders: defineTable({
+    userId: v.id("users"),
+    driveFolderId: v.string(),
+    name: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("indexing"),
+      v.literal("ready"),
+      v.literal("error"),
+    ),
+    error: v.optional(v.string()),
+    pageToken: v.optional(v.string()),
+    watchChannelId: v.optional(v.string()),
+    watchResourceId: v.optional(v.string()),
+    watchExpiresAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_drive", ["userId", "driveFolderId"])
+    .index("by_watch_channel", ["watchChannelId"]),
+
+  files: defineTable({
+    folderId: v.id("folders"),
+    driveFileId: v.string(),
+    name: v.string(),
+    mimeType: v.string(),
+    size: v.optional(v.number()),
+    modifiedTime: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("downloading"),
+      v.literal("extracting"),
+      v.literal("embedding"),
+      v.literal("indexed"),
+      v.literal("skipped"),
+      v.literal("error"),
+    ),
+    extractor: v.optional(
+      v.union(v.literal("native"), v.literal("llamaparse")),
+    ),
+    chunkCount: v.optional(v.number()),
+    contentHash: v.optional(v.string()),
+    error: v.optional(v.string()),
+  })
+    .index("by_folder", ["folderId"])
+    .index("by_folder_drive", ["folderId", "driveFileId"]),
+
+  chats: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    folderIds: v.array(v.id("folders")),
+  }).index("by_user", ["userId"]),
+
+  messages: defineTable({
+    chatId: v.id("chats"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    citations: v.optional(
+      v.array(
+        v.object({
+          chunkId: v.string(),
+          fileId: v.id("files"),
+          startChar: v.number(),
+          endChar: v.number(),
+          text: v.string(),
+        }),
+      ),
+    ),
+    toolTrace: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          input: v.any(),
+          output: v.optional(v.any()),
+        }),
+      ),
+    ),
+  }).index("by_chat", ["chatId"]),
+});
