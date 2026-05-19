@@ -10,10 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@convex-dev/auth": "^0.0.92",
+    "@convex-dev/agent": "^0.6.1",
+    "@convex-dev/persistent-text-streaming": "^0.3.2",
+    "@convex-dev/rag": "^0.7.5",
+    "@convex-dev/rate-limiter": "^0.3.2",
+    "@convex-dev/workflow": "^0.4.1",
     "convex": "^1.39.1",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "react-router": "^7.15.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

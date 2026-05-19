@@ -6,10 +6,29 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     image: v.optional(v.string()),
-    googleAccessToken: v.optional(v.string()),
+    googleSub: v.string(),
+    googleAccessToken: v.string(),
     googleRefreshToken: v.optional(v.string()),
-    googleTokenExpiresAt: v.optional(v.number()),
-  }).index("by_email", ["email"]),
+    googleTokenExpiresAt: v.number(),
+    googleScope: v.string(),
+  })
+    .index("by_email", ["email"])
+    .index("by_google_sub", ["googleSub"]),
+
+  sessions: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_user", ["userId"]),
+
+  oauthStates: defineTable({
+    state: v.string(),
+    codeVerifier: v.string(),
+    redirectTo: v.optional(v.string()),
+    expiresAt: v.number(),
+  }).index("by_state", ["state"]),
 
   folders: defineTable({
     userId: v.id("users"),
