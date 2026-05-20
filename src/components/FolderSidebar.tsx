@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AddFolderDialog } from "./AddFolderDialog";
 import { friendlyError } from "../lib/errors";
 import { useToast } from "../lib/toast";
+import { Tooltip } from "./Tooltip";
 
 type Folder = {
   _id: Id<"folders">;
@@ -118,28 +120,34 @@ export function FolderSidebar({
                   >
                     {f.name}
                   </button>
-                  <div className="flex items-center gap-1.5 pr-3">
-                    <StatusDot status={f.status} title={STATUS_TOOLTIP[f.status]} />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void onReindex(f._id);
-                      }}
-                      className="text-[var(--color-muted)] hover:text-[var(--color-fg)] text-xs leading-none p-1 rounded hover:bg-white"
-                      title="Re-sync from Drive"
-                    >
-                      ↻
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDelete(f._id);
-                      }}
-                      className="text-[var(--color-muted)] hover:text-red-500 text-xs leading-none p-1 rounded hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove folder"
-                    >
-                      ✕
-                    </button>
+                  <div className="flex items-center gap-1 pr-2">
+                    <Tooltip label={STATUS_TOOLTIP[f.status]}>
+                      <StatusDot status={f.status} />
+                    </Tooltip>
+                    <Tooltip label="Re-sync from Drive">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void onReindex(f._id);
+                        }}
+                        className="text-[var(--color-muted)] hover:text-[var(--color-fg)] p-1.5 rounded-md hover:bg-white transition-colors"
+                        aria-label="Re-sync from Drive"
+                      >
+                        <RefreshIcon />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label="Remove folder">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(f._id);
+                        }}
+                        className="text-[var(--color-muted)] hover:text-red-500 p-1.5 rounded-md hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                        aria-label="Remove folder"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
               </li>
@@ -174,20 +182,55 @@ export function FolderSidebar({
   );
 }
 
-function StatusDot({
-  status,
-  title,
-}: {
-  status: Folder["status"];
-  title: string;
-}) {
+function StatusDot({ status }: { status: Folder["status"] }) {
   const color =
     status === "ready"
       ? "bg-green-500"
       : status === "error"
         ? "bg-red-500"
         : "bg-yellow-500 animate-pulse";
-  return <span title={title} className={`w-2 h-2 rounded-full ${color}`} />;
+  return <span className={`w-2 h-2 rounded-full ${color} block`} />;
+}
+
+function RefreshIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
 }
 
 function ConfirmDialog({
@@ -205,9 +248,10 @@ function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4"
+      style={{ height: "100dvh" }}
       onClick={onCancel}
     >
       <div
@@ -237,6 +281,7 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

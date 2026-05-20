@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -74,13 +75,15 @@ export function AddFolderDialog({
 
   const filtered = drive?.filter((f) => !existingDriveIds.has(f.id)) ?? null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4 overflow-y-auto"
+      style={{ height: "100dvh" }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md my-auto flex flex-col overflow-hidden"
+        style={{ maxHeight: "calc(100dvh - 2rem)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
@@ -154,15 +157,11 @@ export function AddFolderDialog({
                   Loading…
                 </p>
               ) : filtered && filtered.length === 0 ? (
-                <p className="text-sm text-[var(--color-muted)] px-3 py-4">
-                  {!search.trim()
-                    ? drive && drive.length > 0
-                      ? "All your Drive folders are already added here."
-                      : "No folders in your Drive yet."
-                    : drive && drive.length > 0
-                      ? `Folders matching "${search}" are already added.`
-                      : `No Drive folders matching "${search}".`}
-                </p>
+                <EmptyResults
+                  hasSearch={!!search.trim()}
+                  hasUnfilteredResults={!!drive && drive.length > 0}
+                  search={search}
+                />
               ) : (
                 <ul className="divide-y divide-[var(--color-border)]">
                   {filtered?.map((f) => {
@@ -196,6 +195,56 @@ export function AddFolderDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+function EmptyResults({
+  hasSearch,
+  hasUnfilteredResults,
+  search,
+}: {
+  hasSearch: boolean;
+  hasUnfilteredResults: boolean;
+  search: string;
+}) {
+  if (!hasSearch) {
+    if (hasUnfilteredResults) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mb-3">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgb(22, 163, 74)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium">All synced</p>
+          <p className="text-xs text-[var(--color-muted)] mt-1">
+            Every Google Drive folder is already added here.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <p className="text-sm text-[var(--color-muted)] px-3 py-6 text-center">
+        No folders in your Google Drive yet.
+      </p>
+    );
+  }
+  return (
+    <p className="text-sm text-[var(--color-muted)] px-3 py-6 text-center">
+      {hasUnfilteredResults
+        ? `Folders matching "${search}" are already added.`
+        : `No Drive folders matching "${search}".`}
+    </p>
   );
 }

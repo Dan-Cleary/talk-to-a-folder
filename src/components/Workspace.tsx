@@ -54,10 +54,11 @@ export function Workspace() {
 
       <aside
         className={`
-          flex flex-col overflow-hidden bg-gray-50/50 border-r border-[var(--color-border)]
+          flex flex-col overflow-hidden border-r border-[var(--color-border)]
           fixed md:relative inset-y-0 left-0 z-40 w-72
+          bg-white md:bg-gray-50/50
           transition-transform duration-200
-          ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          ${mobileSidebarOpen ? "translate-x-0 shadow-2xl md:shadow-none" : "-translate-x-full md:translate-x-0"}
         `}
       >
         <FolderSidebar

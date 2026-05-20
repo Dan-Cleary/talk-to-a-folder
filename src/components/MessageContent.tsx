@@ -96,16 +96,50 @@ export function MessageContent({ text, variant, onCitationClick }: Props) {
     ol: ({ children }: any) => (
       <ol className="list-decimal pl-5 space-y-1 my-2">{children}</ol>
     ),
-    code: ({ children }: any) => (
-      <code className="px-1 py-0.5 rounded bg-gray-200 text-[13px] font-mono">
-        {children}
-      </code>
-    ),
+    code: ({ children, className }: any) => {
+      const isBlock = className?.startsWith("language-");
+      if (isBlock) {
+        return <code className="font-mono">{children}</code>;
+      }
+      return (
+        <code className="px-1.5 py-0.5 rounded bg-gray-100 text-[12.5px] font-mono">
+          {children}
+        </code>
+      );
+    },
     pre: ({ children }: any) => (
-      <pre className="p-2 rounded bg-gray-900 text-gray-100 text-xs overflow-x-auto my-2">
+      <pre className="p-3 rounded-md bg-gray-900 text-gray-100 text-[12.5px] font-mono overflow-x-auto my-3 leading-relaxed">
         {children}
       </pre>
     ),
+    table: ({ children }: any) => (
+      <div className="overflow-x-auto my-3">
+        <table className="border-collapse text-xs">{children}</table>
+      </div>
+    ),
+    thead: ({ children }: any) => (
+      <thead className="bg-gray-50">{children}</thead>
+    ),
+    th: ({ children }: any) => (
+      <th className="border border-[var(--color-border)] px-2 py-1 text-left font-medium">
+        {children}
+      </th>
+    ),
+    td: ({ children }: any) => (
+      <td className="border border-[var(--color-border)] px-2 py-1">
+        {children}
+      </td>
+    ),
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-2 border-[var(--color-border)] pl-3 my-2 text-[var(--color-muted)]">
+        {children}
+      </blockquote>
+    ),
+    hr: () => <hr className="my-3 border-[var(--color-border)]" />,
+    strong: ({ children }: any) => (
+      <strong className="font-semibold">{children}</strong>
+    ),
+    em: ({ children }: any) => <em className="italic">{children}</em>,
     p: ({ children }: any) => (
       <p className="my-1.5 first:mt-0 last:mb-0">{children}</p>
     ),
