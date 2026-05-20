@@ -201,15 +201,26 @@ export const setFileStatus = internalMutation({
   },
 });
 
-export const setFileChunkSpans = internalMutation({
+/**
+ * Cap extracted text we persist for re-render. 1.5MB ceiling avoids blowing
+ * up the row size on huge PDFs; chunks are already in RAG either way.
+ */
+const MAX_EXTRACTED_CHARS = 1_500_000;
+
+export const setFileExtractedText = internalMutation({
   args: {
     fileId: v.id("files"),
+    text: v.string(),
     spans: v.array(
       v.object({ startChar: v.number(), endChar: v.number() }),
     ),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.fileId, { chunkSpans: args.spans });
+    const trimmed = args.text.slice(0, MAX_EXTRACTED_CHARS);
+    await ctx.db.patch(args.fileId, {
+      extractedText: trimmed,
+      chunkSpans: args.spans,
+    });
   },
 });
 
@@ -257,13 +268,10 @@ export const requeueStuckFiles = internalMutation({
       .collect();
     let count = 0;
     for (const f of files) {
-      if (
-        f.status === "indexed" ||
-        f.status === "skipped" ||
-        !SUPPORTED_MIME_TYPES.has(f.mimeType)
-      ) {
-        continue;
-      }
+      if (!SUPPORTED_MIME_TYPES.has(f.mimeType)) continue;
+      // Explicit user-triggered reindex: requeue everything, including
+      // already-indexed files. Lets the user pick up schema changes
+      // (e.g. extractedText added later) or fix bad extractions.
       await ctx.db.patch(f._id, { status: "queued", error: undefined });
       count++;
     }

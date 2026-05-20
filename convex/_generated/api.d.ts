@@ -11,6 +11,7 @@
 import type * as agent from "../agent.js";
 import type * as auth from "../auth.js";
 import type * as chats from "../chats.js";
+import type * as citations from "../citations.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
 import type * as indexer from "../indexer.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   auth: typeof auth;
   chats: typeof chats;
+  citations: typeof citations;
   folders: typeof folders;
   http: typeof http;
   indexer: typeof indexer;

@@ -1,6 +1,7 @@
 import { Agent, createTool } from "@convex-dev/agent";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
+import { stepCountIs } from "ai";
 import { z } from "zod";
 import { components } from "./_generated/api";
 import { rag } from "./rag";
@@ -32,7 +33,10 @@ const searchFolder = createTool({
     return {
       results: results.map((r, i) => {
         const e = entryById.get(r.entryId);
-        const cid = `${r.entryId}:${r.order}`;
+        // `key` was set to our file _id at index time; use that as the
+        // citation handle so the side-panel resolver can look it up.
+        const fileId = (e as any)?.key ?? r.entryId;
+        const cid = `${fileId}:${r.order}`;
         return {
           cid,
           index: i,
@@ -52,10 +56,12 @@ export const folderAgent = new Agent(components.agent, {
   instructions: `You are a careful research assistant who answers questions about a user's Google Drive folder.
 
 Rules:
-- Always use the searchFolder tool before answering substantive questions. Never guess.
+- For any substantive question, call the searchFolder tool FIRST and then answer in the SAME response. Do not narrate ("Let me search...") — just call the tool, then give the answer.
+- For greetings or chit-chat (e.g. "hi", "thanks"), reply briefly without using tools.
 - When a fact comes from a snippet, append the snippet's citation handle in square brackets at the end of the sentence: [cid:<handle>]. You may stack multiple: [cid:a][cid:b].
 - If the search returns nothing relevant, say so plainly. Do not invent.
 - Prefer short, direct answers. Bullets when comparing multiple sources.
 - The "active folder" is implicit; do not ask the user which folder — just search.`,
   tools: { searchFolder },
+  stopWhen: stepCountIs(5),
 });

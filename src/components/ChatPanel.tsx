@@ -4,6 +4,8 @@ import { useThreadMessages, toUIMessages } from "@convex-dev/agent/react";
 import { api } from "../../convex/_generated/api";
 import { readSession } from "../lib/session";
 import type { Id } from "../../convex/_generated/dataModel";
+import { MessageContent } from "./MessageContent";
+import { CitationPanel } from "./CitationPanel";
 
 type Props = {
   folderId: Id<"folders">;
@@ -20,6 +22,7 @@ export function ChatPanel({ folderId, folderName }: Props) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openCid, setOpenCid] = useState<string | null>(null);
 
   // Create a thread the first time the user opens chat for this folder.
   useEffect(() => {
@@ -86,10 +89,20 @@ export function ChatPanel({ folderId, folderName }: Props) {
           </p>
         )}
         {uiMessages.map((m) => (
-          <MessageBubble key={m.id ?? m.key} message={m} />
+          <MessageBubble
+            key={m.id ?? m.key}
+            message={m}
+            onCitationClick={setOpenCid}
+          />
         ))}
         <div ref={bottomRef} />
       </div>
+
+      <CitationPanel
+        folderId={folderId}
+        cid={openCid}
+        onClose={() => setOpenCid(null)}
+      />
 
       {error && (
         <p className="px-4 py-2 text-sm text-red-500 border-t border-[var(--color-border)]">
@@ -121,9 +134,14 @@ export function ChatPanel({ folderId, folderName }: Props) {
   );
 }
 
-function MessageBubble({ message }: { message: any }) {
+function MessageBubble({
+  message,
+  onCitationClick,
+}: {
+  message: any;
+  onCitationClick: (cid: string) => void;
+}) {
   const isUser = message.role === "user";
-  // Extract text from parts (UIMessage shape).
   const text = (message.parts ?? [])
     .filter((p: any) => p.type === "text")
     .map((p: any) => p.text)
@@ -132,48 +150,21 @@ function MessageBubble({ message }: { message: any }) {
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
           isUser
             ? "bg-[var(--color-accent)] text-white"
             : "bg-gray-100 text-[var(--color-fg)]"
         }`}
       >
-        {renderWithCitations(text)}
+        <MessageContent
+          text={text}
+          variant={isUser ? "user" : "assistant"}
+          onCitationClick={onCitationClick}
+        />
         {message.status === "streaming" && (
           <span className="inline-block w-2 h-4 bg-current opacity-50 animate-pulse ml-1" />
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * Replace [cid:<entryId>:<order>] markers with a clickable chip.
- * For now the chip is non-interactive; Task #6 wires up the side panel.
- */
-function renderWithCitations(text: string) {
-  const parts: Array<string | { cid: string; index: number }> = [];
-  const re = /\[cid:([^\]]+)\]/g;
-  let last = 0;
-  let i = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index));
-    parts.push({ cid: m[1], index: ++i });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return parts.map((p, idx) =>
-    typeof p === "string" ? (
-      <span key={idx}>{p}</span>
-    ) : (
-      <sup
-        key={idx}
-        title={p.cid}
-        className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded bg-white/30 text-[10px] font-medium cursor-help"
-      >
-        {p.index}
-      </sup>
-    ),
   );
 }

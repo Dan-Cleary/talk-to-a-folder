@@ -76,6 +76,7 @@ export default defineSchema({
         v.object({ startChar: v.number(), endChar: v.number() }),
       ),
     ),
+    extractedText: v.optional(v.string()),
     contentHash: v.optional(v.string()),
     error: v.optional(v.string()),
   })

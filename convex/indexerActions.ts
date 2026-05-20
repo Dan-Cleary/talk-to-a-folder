@@ -20,6 +20,9 @@ export const indexOneFile = internalAction({
       fileId: args.fileId,
     });
     if (!fileMeta) return { ok: false };
+    // Only short-circuit if already indexed AND nothing is asking us to rerun.
+    // Reindex path sets status back to "queued", so this guard never triggers
+    // for explicit reindexes.
     if (fileMeta.status === "indexed") return { ok: true };
 
     const user = await ctx.runQuery(internal.auth.getUserById, {
@@ -75,8 +78,9 @@ export const indexOneFile = internalAction({
         filterValues: [{ name: "fileId", value: fileMeta._id }],
       });
 
-      await ctx.runMutation(internal.folders.setFileChunkSpans, {
+      await ctx.runMutation(internal.folders.setFileExtractedText, {
         fileId: args.fileId,
+        text,
         spans: chunks.map((c) => ({
           startChar: c.startChar,
           endChar: c.endChar,
