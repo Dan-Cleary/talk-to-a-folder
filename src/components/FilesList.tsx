@@ -28,18 +28,6 @@ const STATUS_COLOR: Record<string, string> = {
   error: "text-red-500",
 };
 
-// Stable ordering for the summary row so it doesn't jump around as files
-// move through the pipeline.
-const STATUS_ORDER = [
-  "queued",
-  "downloading",
-  "extracting",
-  "embedding",
-  "indexed",
-  "skipped",
-  "error",
-] as const;
-
 export function FilesList({ token, folderId, onFileClick }: Props) {
   const files = useQuery(api.folders.filesByFolder, { token, folderId });
 
@@ -52,20 +40,8 @@ export function FilesList({ token, folderId, onFileClick }: Props) {
     return <p className="text-sm text-[var(--color-muted)] p-4">No files.</p>;
   }
 
-  const counts = files.reduce<Record<string, number>>((acc, f) => {
-    acc[f.status] = (acc[f.status] ?? 0) + 1;
-    return acc;
-  }, {});
-
   return (
     <div>
-      <div className="px-4 py-2 border-b border-[var(--color-border)] flex items-center gap-3 text-[11px] text-[var(--color-muted)] h-[36px]">
-        {STATUS_ORDER.filter((k) => counts[k]).map((k) => (
-          <span key={k} className="tabular-nums">
-            {counts[k]} {k}
-          </span>
-        ))}
-      </div>
       <ul>
         {files.map((f) => {
           const clickable = onFileClick && f.status === "indexed";

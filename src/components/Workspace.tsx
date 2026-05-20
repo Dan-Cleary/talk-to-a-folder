@@ -6,7 +6,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { ChatPanel } from "./ChatPanel";
 import { CitationPanel } from "./CitationPanel";
 import { FilesList } from "./FilesList";
-import { FolderPicker } from "./FolderPicker";
+import { FolderSidebar } from "./FolderSidebar";
 
 export function Workspace() {
   const token = readSession() ?? "";
@@ -33,7 +33,7 @@ export function Workspace() {
     <div className="flex-1 flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-80 flex-shrink-0 border-r border-[var(--color-border)] flex flex-col overflow-hidden bg-gray-50/50">
-        <FolderPicker
+        <FolderSidebar
           token={token}
           folders={folders ?? []}
           activeFolderId={activeFolderId}
