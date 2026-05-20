@@ -71,6 +71,11 @@ export default defineSchema({
       v.union(v.literal("native"), v.literal("llamaparse")),
     ),
     chunkCount: v.optional(v.number()),
+    chunkSpans: v.optional(
+      v.array(
+        v.object({ startChar: v.number(), endChar: v.number() }),
+      ),
+    ),
     contentHash: v.optional(v.string()),
     error: v.optional(v.string()),
   })

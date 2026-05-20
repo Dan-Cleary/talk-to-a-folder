@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import {
   action,
   internalMutation,
+  internalQuery,
   query,
   type QueryCtx,
 } from "./_generated/server";
@@ -13,8 +14,10 @@ import {
   getFolderMetadata,
   getFreshAccessToken,
   listFolderFilesRecursive,
+  listMyFolders,
 } from "./lib/drive";
 import { parseFolderId } from "./lib/driveUrl";
+import { workflow } from "./workflow";
 
 async function requireUser(
   ctx: QueryCtx,
@@ -154,6 +157,124 @@ export const insertFolderAndFiles = internalMutation({
   },
 });
 
+export const listQueuedFileIds = internalQuery({
+  args: { folderId: v.id("folders") },
+  handler: async (ctx, args) => {
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_folder", (q) => q.eq("folderId", args.folderId))
+      .collect();
+    return files
+      .filter((f) => f.status === "queued")
+      .map((f) => f._id);
+  },
+});
+
+export const getFileInternal = internalQuery({
+  args: { fileId: v.id("files") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.fileId);
+  },
+});
+
+export const setFileStatus = internalMutation({
+  args: {
+    fileId: v.id("files"),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("downloading"),
+      v.literal("extracting"),
+      v.literal("embedding"),
+      v.literal("indexed"),
+      v.literal("skipped"),
+      v.literal("error"),
+    ),
+    chunkCount: v.optional(v.number()),
+    extractor: v.optional(
+      v.union(v.literal("native"), v.literal("llamaparse")),
+    ),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { fileId, ...patch } = args;
+    await ctx.db.patch(fileId, patch);
+  },
+});
+
+export const setFileChunkSpans = internalMutation({
+  args: {
+    fileId: v.id("files"),
+    spans: v.array(
+      v.object({ startChar: v.number(), endChar: v.number() }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.fileId, { chunkSpans: args.spans });
+  },
+});
+
+export const markFolderReady = internalMutation({
+  args: { folderId: v.id("folders") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.folderId, { status: "ready", error: undefined });
+  },
+});
+
+/**
+ * Public action: re-queue any non-indexed files in an existing folder
+ * and re-kick the indexing workflow. Useful for folders that were added
+ * before the workflow was deployed, or to retry errors.
+ */
+export const reindex = action({
+  args: { token: v.string(), folderId: v.id("folders") },
+  handler: async (ctx, args): Promise<{ requeued: number }> => {
+    const user = await ctx.runQuery(internal.auth.getUserBySession, {
+      token: args.token,
+    });
+    if (!user) throw new Error("Not signed in");
+    const requeued = await ctx.runMutation(internal.folders.requeueStuckFiles, {
+      folderId: args.folderId,
+      userId: user._id,
+    });
+    await workflow.start(ctx, internal.indexer.indexFolderWorkflow, {
+      folderId: args.folderId,
+      userId: user._id,
+    });
+    return { requeued };
+  },
+});
+
+export const requeueStuckFiles = internalMutation({
+  args: { folderId: v.id("folders"), userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const folder = await ctx.db.get(args.folderId);
+    if (!folder || folder.userId !== args.userId) {
+      throw new Error("Folder not found");
+    }
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_folder", (q) => q.eq("folderId", args.folderId))
+      .collect();
+    let count = 0;
+    for (const f of files) {
+      if (
+        f.status === "indexed" ||
+        f.status === "skipped" ||
+        !SUPPORTED_MIME_TYPES.has(f.mimeType)
+      ) {
+        continue;
+      }
+      await ctx.db.patch(f._id, { status: "queued", error: undefined });
+      count++;
+    }
+    await ctx.db.patch(args.folderId, {
+      status: "indexing",
+      error: undefined,
+    });
+    return count;
+  },
+});
+
 export const markFolderError = internalMutation({
   args: { folderId: v.id("folders"), error: v.string() },
   handler: async (ctx, args) => {
@@ -166,6 +287,30 @@ export const markFolderError = internalMutation({
  * Returns the new folder ID so the UI can navigate to it immediately.
  * Indexing runs in a separate workflow (next task).
  */
+/**
+ * Public action: list the signed-in user's Drive folders so the UI can show
+ * a picker. Optional search filter.
+ */
+export const browseDriveFolders = action({
+  args: { token: v.string(), search: v.optional(v.string()) },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Array<{ id: string; name: string; modifiedTime?: string }>> => {
+    const user = await ctx.runQuery(internal.auth.getUserBySession, {
+      token: args.token,
+    });
+    if (!user) throw new Error("Not signed in");
+    const accessToken = await getFreshAccessToken(ctx, user);
+    try {
+      return await listMyFolders(accessToken, args.search);
+    } catch (e) {
+      if (e instanceof DriveError) throw new Error(`Drive: ${e.message}`);
+      throw e;
+    }
+  },
+});
+
 export const add = action({
   args: { token: v.string(), input: v.string() },
   handler: async (ctx, args): Promise<{ folderId: Id<"folders"> }> => {
@@ -207,7 +352,13 @@ export const add = action({
       })),
     });
 
-    // TODO: kick off indexing workflow here once it's built.
+    // Fire-and-forget durable workflow. The UI sees progress via reactive
+    // queries on file status.
+    await workflow.start(ctx, internal.indexer.indexFolderWorkflow, {
+      folderId: result.folderId,
+      userId: user._id,
+    });
+
     return { folderId: result.folderId };
   },
 });

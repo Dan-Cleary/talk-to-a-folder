@@ -11,8 +11,14 @@
 import type * as auth from "../auth.js";
 import type * as folders from "../folders.js";
 import type * as http from "../http.js";
+import type * as indexer from "../indexer.js";
+import type * as indexerActions from "../indexerActions.js";
 import type * as lib_drive from "../lib/drive.js";
 import type * as lib_driveUrl from "../lib/driveUrl.js";
+import type * as lib_extract from "../lib/extract.js";
+import type * as limiter from "../limiter.js";
+import type * as rag from "../rag.js";
+import type * as workflow from "../workflow.js";
 
 import type {
   ApiFromModules,
@@ -24,8 +30,14 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   folders: typeof folders;
   http: typeof http;
+  indexer: typeof indexer;
+  indexerActions: typeof indexerActions;
   "lib/drive": typeof lib_drive;
   "lib/driveUrl": typeof lib_driveUrl;
+  "lib/extract": typeof lib_extract;
+  limiter: typeof limiter;
+  rag: typeof rag;
+  workflow: typeof workflow;
 }>;
 
 /**
@@ -54,4 +66,8 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
+  rag: import("@convex-dev/rag/_generated/component.js").ComponentApi<"rag">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

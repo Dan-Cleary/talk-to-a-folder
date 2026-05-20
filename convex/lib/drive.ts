@@ -95,6 +95,45 @@ export async function getFreshAccessToken(
   return data.access_token;
 }
 
+/**
+ * For Google native formats, return the export MIME type we'll convert to.
+ * For everything else, returns null (caller uses alt=media binary download).
+ */
+export function exportMimeFor(driveMime: string): string | null {
+  switch (driveMime) {
+    case "application/vnd.google-apps.document":
+      return "text/plain";
+    case "application/vnd.google-apps.spreadsheet":
+      return "text/csv";
+    case "application/vnd.google-apps.presentation":
+      return "text/plain";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Download a file's bytes. Handles both Google-native exports and
+ * regular binary downloads via alt=media.
+ * Returns { bytes, mimeType } where mimeType reflects post-export type.
+ */
+export async function downloadFile(
+  accessToken: string,
+  driveFileId: string,
+  driveMime: string,
+): Promise<{ bytes: ArrayBuffer; mimeType: string }> {
+  const exportMime = exportMimeFor(driveMime);
+  const url = exportMime
+    ? `/files/${driveFileId}/export?mimeType=${encodeURIComponent(exportMime)}`
+    : `/files/${driveFileId}?alt=media&supportsAllDrives=true`;
+  const res = await driveFetch(accessToken, url);
+  if (!res.ok) {
+    throw new DriveError(res.status, `downloadFile: ${await res.text()}`);
+  }
+  const bytes = await res.arrayBuffer();
+  return { bytes, mimeType: exportMime ?? driveMime };
+}
+
 async function driveFetch(
   accessToken: string,
   path: string,
@@ -121,6 +160,42 @@ async function driveFetch(
     throw new DriveError(404, "Drive resource not found.");
   }
   return res;
+}
+
+/**
+ * List the user's Drive folders, most-recently-modified first.
+ * Optional search query matches folder names (Drive's `name contains` filter).
+ */
+export async function listMyFolders(
+  accessToken: string,
+  search?: string,
+  limit = 50,
+): Promise<Array<{ id: string; name: string; modifiedTime?: string }>> {
+  const qParts = [
+    "mimeType = 'application/vnd.google-apps.folder'",
+    "trashed = false",
+  ];
+  if (search?.trim()) {
+    // Drive's search syntax requires escaping single quotes.
+    const escaped = search.replace(/'/g, "\\'");
+    qParts.push(`name contains '${escaped}'`);
+  }
+  const params = new URLSearchParams({
+    q: qParts.join(" and "),
+    fields: "files(id,name,modifiedTime)",
+    orderBy: "modifiedTime desc",
+    pageSize: String(limit),
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  });
+  const res = await driveFetch(accessToken, `/files?${params}`);
+  if (!res.ok) {
+    throw new DriveError(res.status, `listMyFolders: ${await res.text()}`);
+  }
+  const data = (await res.json()) as {
+    files: Array<{ id: string; name: string; modifiedTime?: string }>;
+  };
+  return data.files;
 }
 
 export async function getFolderMetadata(

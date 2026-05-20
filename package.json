@@ -10,15 +10,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.64",
     "@convex-dev/agent": "^0.6.1",
     "@convex-dev/persistent-text-streaming": "^0.3.2",
     "@convex-dev/rag": "^0.7.5",
     "@convex-dev/rate-limiter": "^0.3.2",
     "@convex-dev/workflow": "^0.4.1",
+    "ai": "^6.0.185",
     "convex": "^1.39.1",
+    "mammoth": "^1.12.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router": "^7.15.1"
+    "react-router": "^7.15.1",
+    "unpdf": "^1.6.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
