@@ -21,6 +21,7 @@ import type * as indexerActions from "../indexerActions.js";
 import type * as lib_drive from "../lib/drive.js";
 import type * as lib_driveUrl from "../lib/driveUrl.js";
 import type * as lib_extract from "../lib/extract.js";
+import type * as lib_llamaParse from "../lib/llamaParse.js";
 import type * as limiter from "../limiter.js";
 import type * as rag from "../rag.js";
 import type * as workflow from "../workflow.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   "lib/drive": typeof lib_drive;
   "lib/driveUrl": typeof lib_driveUrl;
   "lib/extract": typeof lib_extract;
+  "lib/llamaParse": typeof lib_llamaParse;
   limiter: typeof limiter;
   rag: typeof rag;
   workflow: typeof workflow;

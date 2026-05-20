@@ -7,6 +7,7 @@ import { rag } from "./rag";
 import { limiter } from "./limiter";
 import { downloadFile, getFreshAccessToken } from "./lib/drive";
 import { chunkText, extractFromBytes } from "./lib/extract";
+import { isLlamaParseConfigured, parseWithLlama } from "./lib/llamaParse";
 
 /**
  * Per-file indexing step. Runs end-to-end for one file:
@@ -49,12 +50,39 @@ export const indexOneFile = internalAction({
         fileId: args.fileId,
         status: "extracting",
       });
-      const { text, thin } = await extractFromBytes(mimeType, bytes);
+      let { text, thin } = await extractFromBytes(mimeType, bytes);
+      let extractor: "native" | "llamaparse" = "native";
+
+      // Fallback to LlamaParse for thin/empty extractions — typically scanned
+      // PDFs, image-heavy documents, or complex tables. Only attempted when
+      // configured; otherwise we skip the file with a clear reason.
+      if ((thin || !text.trim()) && isLlamaParseConfigured()) {
+        try {
+          const llamaText = await parseWithLlama(
+            bytes,
+            fileMeta.name,
+            mimeType,
+          );
+          if (llamaText.trim().length > text.length) {
+            text = llamaText;
+            thin = false;
+            extractor = "llamaparse";
+          }
+        } catch (err) {
+          console.warn(
+            "llamaParse fallback failed; using native result",
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }
+
       if (!text.trim()) {
         await ctx.runMutation(internal.folders.setFileStatus, {
           fileId: args.fileId,
           status: "skipped",
-          error: "No text extracted",
+          error: isLlamaParseConfigured()
+            ? "No text extracted (native + LlamaParse)"
+            : "No text extracted (LlamaParse not configured)",
         });
         return { ok: true };
       }
@@ -90,7 +118,7 @@ export const indexOneFile = internalAction({
         fileId: args.fileId,
         status: "indexed",
         chunkCount: chunks.length,
-        extractor: thin ? undefined : "native",
+        extractor,
       });
       return { ok: true, chunks: chunks.length };
     } catch (err) {
