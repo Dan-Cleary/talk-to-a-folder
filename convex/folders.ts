@@ -367,6 +367,15 @@ export const add = action({
       userId: user._id,
     });
 
+    // Ensure the user has a live Drive `changes.watch` so future file
+    // modifications auto-reindex. Scheduled async — we don't block the
+    // add flow on it.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.driveWebhook.ensureChangesWatch,
+      { userId: user._id },
+    );
+
     return { folderId: result.folderId };
   },
 });

@@ -152,6 +152,43 @@ http.route({
   }),
 });
 
+/**
+ * Drive notification webhook. Google POSTs here on any change to the user's
+ * drive (sync, add, modify, remove, trash). The request body is empty —
+ * the only signal is in headers:
+ *   - X-Goog-Channel-ID identifies our channel
+ *   - X-Goog-Resource-State: "sync" (initial handshake) or "change"
+ * We schedule processing async — webhook handlers must return fast (<10s).
+ */
+http.route({
+  path: "/drive/webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const channelId = request.headers.get("x-goog-channel-id");
+    const resourceState = request.headers.get("x-goog-resource-state");
+
+    if (!channelId) {
+      return new Response("missing channel id", { status: 400 });
+    }
+    // "sync" is the initial confirmation when a channel opens — ignore.
+    if (resourceState === "sync") {
+      return new Response(null, { status: 200 });
+    }
+    const user = await ctx.runQuery(internal.driveWebhook.findUserByChannel, {
+      channelId,
+    });
+    if (!user) {
+      // Unknown channel — likely stale. Tell Google to stop sending.
+      return new Response(null, { status: 404 });
+    }
+    // Drain asynchronously so we return promptly.
+    await ctx.scheduler.runAfter(0, internal.driveWebhook.processUserChanges, {
+      userId: user._id,
+    });
+    return new Response(null, { status: 200 });
+  }),
+});
+
 http.route({
   path: "/auth/logout",
   method: "POST",

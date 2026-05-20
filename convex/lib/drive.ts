@@ -134,6 +134,155 @@ export async function downloadFile(
   return { bytes, mimeType: exportMime ?? driveMime };
 }
 
+/**
+ * Get the current `startPageToken` for the user's drive. Used as the cursor
+ * for `changes.list` when we start watching.
+ */
+export async function getStartPageToken(accessToken: string): Promise<string> {
+  const res = await driveFetch(
+    accessToken,
+    "/changes/startPageToken?supportsAllDrives=true",
+  );
+  if (!res.ok) {
+    throw new DriveError(
+      res.status,
+      `getStartPageToken: ${await res.text()}`,
+    );
+  }
+  const data = (await res.json()) as { startPageToken: string };
+  return data.startPageToken;
+}
+
+/**
+ * Open a `changes.watch` notification channel. Google POSTs to `address`
+ * whenever the user's drive changes. Channel expires after ~7 days.
+ */
+export async function startChangesWatch(
+  accessToken: string,
+  args: {
+    pageToken: string;
+    channelId: string;
+    address: string;
+    token?: string;
+    ttlSeconds?: number;
+  },
+): Promise<{ resourceId: string; expiration: number }> {
+  const params = new URLSearchParams({
+    pageToken: args.pageToken,
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  });
+  const body: Record<string, unknown> = {
+    id: args.channelId,
+    type: "web_hook",
+    address: args.address,
+  };
+  if (args.token) body.token = args.token;
+  if (args.ttlSeconds) body.params = { ttl: String(args.ttlSeconds) };
+  const res = await driveFetch(accessToken, `/changes/watch?${params}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new DriveError(res.status, `startChangesWatch: ${await res.text()}`);
+  }
+  const data = (await res.json()) as {
+    resourceId: string;
+    expiration?: string;
+  };
+  return {
+    resourceId: data.resourceId,
+    expiration: data.expiration ? parseInt(data.expiration, 10) : Date.now() + 7 * 24 * 60 * 60 * 1000,
+  };
+}
+
+/**
+ * Stop a watch channel. Best-effort.
+ */
+export async function stopWatchChannel(
+  accessToken: string,
+  args: { channelId: string; resourceId: string },
+): Promise<void> {
+  const res = await fetch(`${DRIVE_API}/channels/stop`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: args.channelId, resourceId: args.resourceId }),
+  });
+  if (!res.ok && res.status !== 404) {
+    // Swallow errors — stale channels are harmless and expire on their own.
+    console.warn("stopWatchChannel failed", res.status, await res.text());
+  }
+}
+
+/**
+ * Drain the changes feed since `pageToken`. Returns the new token plus the
+ * list of changed/removed file IDs (with their current parents).
+ */
+export async function listChanges(
+  accessToken: string,
+  pageToken: string,
+): Promise<{
+  newPageToken: string;
+  changes: Array<{
+    fileId: string;
+    removed: boolean;
+    file?: {
+      id: string;
+      name?: string;
+      mimeType?: string;
+      modifiedTime?: string;
+      parents?: string[];
+      trashed?: boolean;
+    };
+  }>;
+}> {
+  const allChanges: Array<{
+    fileId: string;
+    removed: boolean;
+    file?: any;
+  }> = [];
+  let token: string | undefined = pageToken;
+  let newPageToken = pageToken;
+  while (token) {
+    const params = new URLSearchParams({
+      pageToken: token,
+      fields:
+        "newStartPageToken,nextPageToken,changes(fileId,removed,file(id,name,mimeType,modifiedTime,parents,trashed))",
+      pageSize: "100",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      includeRemoved: "true",
+    });
+    const res = await driveFetch(accessToken, `/changes?${params}`);
+    if (!res.ok) {
+      throw new DriveError(res.status, `listChanges: ${await res.text()}`);
+    }
+    const data = (await res.json()) as {
+      changes: any[];
+      nextPageToken?: string;
+      newStartPageToken?: string;
+    };
+    for (const c of data.changes ?? []) {
+      allChanges.push({
+        fileId: c.fileId,
+        removed: !!c.removed,
+        file: c.file,
+      });
+    }
+    if (data.newStartPageToken) {
+      newPageToken = data.newStartPageToken;
+      token = undefined;
+    } else {
+      token = data.nextPageToken;
+    }
+  }
+  return { newPageToken, changes: allChanges };
+}
+
 async function driveFetch(
   accessToken: string,
   path: string,

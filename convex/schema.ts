@@ -11,9 +11,15 @@ export default defineSchema({
     googleRefreshToken: v.optional(v.string()),
     googleTokenExpiresAt: v.number(),
     googleScope: v.string(),
+    // Drive `changes.watch` — one channel per user, covers all folders.
+    changesWatchChannelId: v.optional(v.string()),
+    changesWatchResourceId: v.optional(v.string()),
+    changesWatchExpiresAt: v.optional(v.number()),
+    changesPageToken: v.optional(v.string()),
   })
     .index("by_email", ["email"])
-    .index("by_google_sub", ["googleSub"]),
+    .index("by_google_sub", ["googleSub"])
+    .index("by_watch_channel", ["changesWatchChannelId"]),
 
   sessions: defineTable({
     userId: v.id("users"),
