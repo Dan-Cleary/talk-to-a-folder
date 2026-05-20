@@ -3,7 +3,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { stepCountIs } from "ai";
 import { z } from "zod";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import { rag } from "./rag";
 import type { Id } from "./_generated/dataModel";
 
@@ -49,6 +49,30 @@ const searchFolder = createTool({
   },
 });
 
+/**
+ * Tool: listFiles. Returns the names + status of every file in the active
+ * folder. Critical for broad questions like "summarize each file" where the
+ * agent should fan out instead of relying on a single vector search.
+ */
+const listFiles = createTool({
+  description:
+    "List every indexed file in the active folder. Use this BEFORE searching when the user asks something that requires considering the whole folder (e.g. 'what's in here?', 'summarize each file', 'compare X across files').",
+  inputSchema: z.object({}),
+  execute: async (ctx: any) => {
+    const folderId = ctx.folderId as Id<"folders"> | undefined;
+    if (!folderId) return { files: [] };
+    const files: any[] = await ctx.runQuery(
+      internal.folders.listFolderFilesInternal,
+      { folderId },
+    );
+    return {
+      files: files
+        .filter((f) => f.status === "indexed")
+        .map((f) => ({ name: f.name, mimeType: f.mimeType })),
+    };
+  },
+});
+
 export const folderAgent = new Agent(components.agent, {
   name: "Talk-to-Folder Agent",
   languageModel: anthropic.chat("claude-sonnet-4-6"),
@@ -56,12 +80,14 @@ export const folderAgent = new Agent(components.agent, {
   instructions: `You are a careful research assistant who answers questions about a user's Google Drive folder.
 
 Rules:
-- For any substantive question, call the searchFolder tool FIRST and then answer in the SAME response. Do not narrate ("Let me search...") — just call the tool, then give the answer.
+- For broad questions ("what's in here?", "summarize each file", "compare X across files"), call listFiles FIRST, then make ONE searchFolder call PER FILE using the file's name as part of the query.
+- For specific questions (a topic, a definition, a number), skip listFiles and call searchFolder directly with the topic.
 - For greetings or chit-chat (e.g. "hi", "thanks"), reply briefly without using tools.
+- Do not narrate ("Let me search…") — just call the tool, then give the answer.
 - When a fact comes from a snippet, append the snippet's citation handle in square brackets at the end of the sentence: [cid:<handle>]. You may stack multiple: [cid:a][cid:b].
-- If the search returns nothing relevant, say so plainly. Do not invent.
+- If a search returns nothing relevant, say so plainly. Do not invent.
 - Prefer short, direct answers. Bullets when comparing multiple sources.
-- The "active folder" is implicit; do not ask the user which folder — just search.`,
-  tools: { searchFolder },
-  stopWhen: stepCountIs(5),
+- The "active folder" is implicit; do not ask the user which folder — just call the tools.`,
+  tools: { listFiles, searchFolder },
+  stopWhen: stepCountIs(10),
 });

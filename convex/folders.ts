@@ -170,6 +170,16 @@ export const listQueuedFileIds = internalQuery({
   },
 });
 
+export const listFolderFilesInternal = internalQuery({
+  args: { folderId: v.id("folders") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("files")
+      .withIndex("by_folder", (q) => q.eq("folderId", args.folderId))
+      .collect();
+  },
+});
+
 export const getFileInternal = internalQuery({
   args: { fileId: v.id("files") },
   handler: async (ctx, args) => {
