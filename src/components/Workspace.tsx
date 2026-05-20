@@ -14,7 +14,11 @@ export function Workspace() {
   const [activeFolderId, setActiveFolderId] = useState<Id<"folders"> | null>(
     null,
   );
-  const [openCid, setOpenCid] = useState<string | null>(null);
+  const [source, setSource] = useState<
+    | { kind: "cid"; cid: string }
+    | { kind: "file"; fileId: Id<"files"> }
+    | null
+  >(null);
 
   // Auto-select the most recent folder once it loads.
   useEffect(() => {
@@ -51,14 +55,17 @@ export function Workspace() {
             </div>
             <div className="flex-1 flex overflow-hidden">
               <div className="w-72 flex-shrink-0 border-r border-[var(--color-border)] overflow-y-auto">
-                <FilesList token={token} folderId={activeFolder._id} />
+                <FilesList
+                  token={token}
+                  folderId={activeFolder._id}
+                  onFileClick={(fileId) => setSource({ kind: "file", fileId })}
+                />
               </div>
               <div className="flex-1 flex overflow-hidden">
                 <ChatPanel
                   folderId={activeFolder._id}
                   folderName={activeFolder.name}
-                  onCitationOpen={setOpenCid}
-                  openCid={openCid}
+                  onCitationOpen={(cid) => setSource({ kind: "cid", cid })}
                 />
               </div>
             </div>
@@ -75,8 +82,8 @@ export function Workspace() {
       {activeFolder && (
         <CitationPanel
           folderId={activeFolder._id}
-          cid={openCid}
-          onClose={() => setOpenCid(null)}
+          source={source}
+          onClose={() => setSource(null)}
         />
       )}
     </div>

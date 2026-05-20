@@ -294,11 +294,19 @@ export const processUserChanges = internalAction({
       for (const parent of parents) {
         const folderId = folderIdsByDriveId.get(parent);
         if (!folderId) continue;
+        const filePayload = change.file
+          ? {
+              name: change.file.name,
+              mimeType: change.file.mimeType,
+              modifiedTime: change.file.modifiedTime,
+              trashed: change.file.trashed,
+            }
+          : undefined;
         await ctx.runMutation(internal.driveWebhook.applyChange, {
           folderId,
           driveFileId: change.fileId,
           removed: change.removed,
-          file: change.file,
+          file: filePayload,
         });
         affectedFolderIds.add(folderId);
       }

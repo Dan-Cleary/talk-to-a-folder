@@ -33,7 +33,6 @@ export function FolderPicker({ token, folders, activeFolderId, onSelect }: Props
   const [busy, setBusy] = useState<string | null>(null);
   const [pasteInput, setPasteInput] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
-  const [showPaste, setShowPaste] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -52,6 +51,9 @@ export function FolderPicker({ token, folders, activeFolderId, onSelect }: Props
   }, [search, token, browse]);
 
   const indexedDriveIds = new Set(folders.map((f) => f.driveFolderId));
+  // Hide already-added folders from the picker — they live in the
+  // "Your folders" section above. Avoids the same name appearing twice.
+  const driveFiltered = drive?.filter((f) => !indexedDriveIds.has(f.id)) ?? null;
 
   const addFolder = async (input: string) => {
     setBusy(input);
@@ -60,7 +62,6 @@ export function FolderPicker({ token, folders, activeFolderId, onSelect }: Props
       const { folderId } = await add({ token, input });
       onSelect(folderId);
       setPasteInput("");
-      setShowPaste(false);
     } catch (e) {
       setPasteError((e as Error).message);
     } finally {
@@ -110,15 +111,32 @@ export function FolderPicker({ token, folders, activeFolderId, onSelect }: Props
 
       {/* Add folder */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="px-3 py-2 border-b border-[var(--color-border)]">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)] px-2 mb-1.5">
+        <div className="px-3 py-2 border-b border-[var(--color-border)] space-y-2">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)] px-2">
             Add a folder
           </h3>
           <input
             type="text"
+            value={pasteInput}
+            onChange={(e) => setPasteInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && pasteInput.trim() && !busy) {
+                void addFolder(pasteInput.trim());
+              }
+            }}
+            placeholder="Paste a Drive link…"
+            disabled={busy !== null}
+            className="w-full px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-accent)]"
+          />
+          {pasteError && (
+            <p className="text-xs text-red-500">{pasteError}</p>
+          )}
+          <div className="text-[10px] text-center text-[var(--color-muted)]">— or browse —</div>
+          <input
+            type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search Drive…"
+            placeholder="Search your Drive folders…"
             className="w-full px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-white text-sm focus:outline-none focus:border-[var(--color-accent)]"
           />
         </div>
@@ -129,73 +147,32 @@ export function FolderPicker({ token, folders, activeFolderId, onSelect }: Props
           )}
           {browseLoading && !drive ? (
             <p className="text-xs text-[var(--color-muted)] px-2 py-2">Loading…</p>
-          ) : drive && drive.length === 0 ? (
-            <p className="text-xs text-[var(--color-muted)] px-2 py-2">No matches.</p>
+          ) : driveFiltered && driveFiltered.length === 0 ? (
+            <p className="text-xs text-[var(--color-muted)] px-2 py-2">
+              {drive && drive.length > 0
+                ? "Everything matching is already added."
+                : "No matches."}
+            </p>
           ) : (
             <ul>
-              {drive?.map((f) => {
-                const already = indexedDriveIds.has(f.id);
+              {driveFiltered?.map((f) => {
                 const loading = busy === f.id;
                 return (
                   <li key={f.id}>
                     <button
-                      onClick={() => !already && void addFolder(f.id)}
-                      disabled={already || loading || busy !== null}
+                      onClick={() => void addFolder(f.id)}
+                      disabled={loading || busy !== null}
                       className="w-full text-left px-2 py-1.5 rounded-md hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-between gap-2"
                     >
                       <span className="truncate text-sm">{f.name}</span>
                       <span className="text-[10px] text-[var(--color-muted)]">
-                        {already ? "added" : loading ? "…" : "+"}
+                        {loading ? "…" : "+"}
                       </span>
                     </button>
                   </li>
                 );
               })}
             </ul>
-          )}
-        </div>
-
-        <div className="px-3 py-2 border-t border-[var(--color-border)]">
-          {showPaste ? (
-            <div className="space-y-1.5">
-              <input
-                type="text"
-                value={pasteInput}
-                onChange={(e) => setPasteInput(e.target.value)}
-                placeholder="drive.google.com/drive/folders/…"
-                disabled={busy !== null}
-                className="w-full px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-white text-xs focus:outline-none focus:border-[var(--color-accent)]"
-                autoFocus
-              />
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => pasteInput.trim() && addFolder(pasteInput.trim())}
-                  disabled={busy !== null || !pasteInput.trim()}
-                  className="flex-1 px-2 py-1 rounded-md bg-[var(--color-accent)] text-white text-xs font-medium disabled:opacity-50"
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPaste(false);
-                    setPasteInput("");
-                  }}
-                  className="px-2 py-1 rounded-md text-xs text-[var(--color-muted)] hover:text-[var(--color-fg)]"
-                >
-                  Cancel
-                </button>
-              </div>
-              {pasteError && (
-                <p className="text-xs text-red-500">{pasteError}</p>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowPaste(true)}
-              className="w-full text-xs text-[var(--color-muted)] hover:text-[var(--color-fg)] py-1"
-            >
-              + paste a Drive link
-            </button>
           )}
         </div>
       </div>

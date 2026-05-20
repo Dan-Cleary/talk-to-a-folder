@@ -10,7 +10,6 @@ type Props = {
   folderId: Id<"folders">;
   folderName: string;
   onCitationOpen: (cid: string) => void;
-  openCid: string | null;
 };
 
 export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
@@ -91,6 +90,7 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
             onCitationClick={onCitationOpen}
           />
         ))}
+        {busy && !lastIsStreamingAssistant(uiMessages) && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 
@@ -120,6 +120,33 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
           {busy ? "…" : "Send"}
         </button>
       </form>
+    </div>
+  );
+}
+
+function lastIsStreamingAssistant(messages: any[]): boolean {
+  const last = messages[messages.length - 1];
+  if (!last) return false;
+  return last.role === "assistant" && last.status === "streaming";
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="bg-gray-100 rounded-lg px-3 py-2.5 flex items-center gap-1">
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] animate-bounce"
+          style={{ animationDelay: "0ms" }}
+        />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] animate-bounce"
+          style={{ animationDelay: "120ms" }}
+        />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-[var(--color-muted)] animate-bounce"
+          style={{ animationDelay: "240ms" }}
+        />
+      </div>
     </div>
   );
 }
