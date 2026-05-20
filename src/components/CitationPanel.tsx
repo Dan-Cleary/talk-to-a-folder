@@ -107,7 +107,7 @@ export function CitationPanel({
         : `${fileList?.length ?? 0} ${fileList?.length === 1 ? "file" : "files"}`;
 
   return (
-    <aside className="fixed inset-y-0 right-0 w-[min(520px,40vw)] bg-white border-l border-[var(--color-border)] shadow-xl flex flex-col z-50">
+    <aside className="fixed inset-y-0 right-0 w-full md:w-[min(520px,40vw)] bg-white border-l border-[var(--color-border)] shadow-xl flex flex-col z-50">
       <header className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
         <div className="min-w-0">
           <div className="text-xs text-[var(--color-muted)] uppercase tracking-wide">

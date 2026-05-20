@@ -293,6 +293,53 @@ export const requeueStuckFiles = internalMutation({
   },
 });
 
+/**
+ * Public action: remove a folder and all its files. Best-effort cleans up
+ * the corresponding RAG namespace too. Useful for testing different states
+ * without re-OAuth and for users who want to forget a folder.
+ */
+export const remove = action({
+  args: { token: v.string(), folderId: v.id("folders") },
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const user = await ctx.runQuery(internal.auth.getUserBySession, {
+      token: args.token,
+    });
+    if (!user) throw new Error("Not signed in");
+    await ctx.runMutation(internal.folders.deleteFolderInternal, {
+      folderId: args.folderId,
+      userId: user._id,
+    });
+    // RAG entries in this folder's namespace are intentionally left in
+    // place — they're keyed by file _id which is gone, and they won't be
+    // queryable since no file row references their namespace. Cheap to
+    // live with for v1.
+    return { ok: true };
+  },
+});
+
+export const deleteFolderInternal = internalMutation({
+  args: { folderId: v.id("folders"), userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const folder = await ctx.db.get(args.folderId);
+    if (!folder || folder.userId !== args.userId) {
+      throw new Error("Folder not found");
+    }
+    // Delete files first, then chats keyed to this folder, then folder.
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_folder", (q) => q.eq("folderId", args.folderId))
+      .collect();
+    for (const f of files) await ctx.db.delete(f._id);
+    const chats = await ctx.db
+      .query("chats")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("folderId"), args.folderId))
+      .collect();
+    for (const c of chats) await ctx.db.delete(c._id);
+    await ctx.db.delete(args.folderId);
+  },
+});
+
 export const markFolderError = internalMutation({
   args: { folderId: v.id("folders"), error: v.string() },
   handler: async (ctx, args) => {

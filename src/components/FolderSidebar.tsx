@@ -3,6 +3,8 @@ import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { AddFolderDialog } from "./AddFolderDialog";
+import { friendlyError } from "../lib/errors";
+import { useToast } from "../lib/toast";
 
 type Folder = {
   _id: Id<"folders">;
@@ -19,6 +21,13 @@ type Props = {
   onSelect: (id: Id<"folders">) => void;
 };
 
+const STATUS_TOOLTIP: Record<Folder["status"], string> = {
+  ready: "Indexed and ready to chat",
+  indexing: "Indexing files…",
+  pending: "Queued for indexing",
+  error: "Indexing failed",
+};
+
 export function FolderSidebar({
   token,
   folders,
@@ -26,7 +35,40 @@ export function FolderSidebar({
   onSelect,
 }: Props) {
   const reindex = useAction(api.folders.reindex);
+  const remove = useAction(api.folders.remove);
+  const toast = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Id<"folders"> | null>(
+    null,
+  );
+  const [pendingRemove, setPendingRemove] = useState<Id<"folders"> | null>(
+    null,
+  );
+
+  const onReindex = async (folderId: Id<"folders">) => {
+    try {
+      await reindex({ token, folderId });
+      toast.push("info", "Re-indexing started.");
+    } catch (e) {
+      toast.push("error", friendlyError(e));
+    }
+  };
+
+  const onRemove = async (folderId: Id<"folders">) => {
+    setPendingRemove(folderId);
+    try {
+      await remove({ token, folderId });
+      if (activeFolderId === folderId) {
+        // Picking a different one happens via the auto-select effect.
+      }
+      toast.push("info", "Folder removed.");
+    } catch (e) {
+      toast.push("error", friendlyError(e));
+    } finally {
+      setPendingRemove(null);
+      setConfirmDelete(null);
+    }
+  };
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -58,30 +100,48 @@ export function FolderSidebar({
         ) : (
           <ul>
             {folders.map((f) => (
-              <li key={f._id}>
-                <button
-                  onClick={() => onSelect(f._id)}
-                  className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-2 ${
+              <li key={f._id} className="group">
+                <div
+                  className={`relative w-full text-sm flex items-center gap-2 ${
                     activeFolderId === f._id
-                      ? "bg-[var(--color-accent-bg)] text-[var(--color-accent)]"
+                      ? "bg-[var(--color-accent-bg)]"
                       : "hover:bg-gray-100"
-                  }`}
+                  } ${pendingRemove === f._id ? "opacity-50" : ""}`}
                 >
-                  <span className="truncate flex-1">{f.name}</span>
-                  <span className="flex items-center gap-1.5">
-                    <StatusDot status={f.status} />
-                    <span
+                  <button
+                    onClick={() => onSelect(f._id)}
+                    className={`flex-1 text-left px-4 py-2 truncate ${
+                      activeFolderId === f._id
+                        ? "text-[var(--color-accent)] font-medium"
+                        : ""
+                    }`}
+                  >
+                    {f.name}
+                  </button>
+                  <div className="flex items-center gap-1.5 pr-3">
+                    <StatusDot status={f.status} title={STATUS_TOOLTIP[f.status]} />
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        void reindex({ token, folderId: f._id });
+                        void onReindex(f._id);
                       }}
-                      className="text-[var(--color-muted)] hover:text-[var(--color-fg)] text-xs cursor-pointer leading-none"
-                      title="Re-index"
+                      className="text-[var(--color-muted)] hover:text-[var(--color-fg)] text-xs leading-none p-1 rounded hover:bg-white"
+                      title="Re-sync from Drive"
                     >
                       ↻
-                    </span>
-                  </span>
-                </button>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDelete(f._id);
+                      }}
+                      className="text-[var(--color-muted)] hover:text-red-500 text-xs leading-none p-1 rounded hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Remove folder"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -99,16 +159,84 @@ export function FolderSidebar({
           }}
         />
       )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Remove folder?"
+          body="This deletes the folder and its indexed files from this app. It doesn't touch anything in your Google Drive."
+          confirmLabel="Remove"
+          danger
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => onRemove(confirmDelete)}
+        />
+      )}
     </div>
   );
 }
 
-function StatusDot({ status }: { status: Folder["status"] }) {
+function StatusDot({
+  status,
+  title,
+}: {
+  status: Folder["status"];
+  title: string;
+}) {
   const color =
     status === "ready"
       ? "bg-green-500"
       : status === "error"
         ? "bg-red-500"
         : "bg-yellow-500 animate-pulse";
-  return <span className={`w-2 h-2 rounded-full ${color}`} />;
+  return <span title={title} className={`w-2 h-2 rounded-full ${color}`} />;
+}
+
+function ConfirmDialog({
+  title,
+  body,
+  confirmLabel,
+  danger,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-sm p-5 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h2 className="text-sm font-semibold mb-1">{title}</h2>
+          <p className="text-sm text-[var(--color-muted)]">{body}</p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-sm rounded-md hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-3 py-1.5 text-sm rounded-md font-medium text-white ${
+              danger
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-[var(--color-accent)] hover:opacity-90"
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

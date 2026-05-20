@@ -155,9 +155,13 @@ export function AddFolderDialog({
                 </p>
               ) : filtered && filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-muted)] px-3 py-4">
-                  {drive && drive.length > 0
-                    ? "Everything matching is already added."
-                    : "No matches."}
+                  {!search.trim()
+                    ? drive && drive.length > 0
+                      ? "All your Drive folders are already added here."
+                      : "No folders in your Drive yet."
+                    : drive && drive.length > 0
+                      ? `Folders matching "${search}" are already added.`
+                      : `No Drive folders matching "${search}".`}
                 </p>
               ) : (
                 <ul className="divide-y divide-[var(--color-border)]">
