@@ -85,32 +85,10 @@ export default defineSchema({
   chats: defineTable({
     userId: v.id("users"),
     title: v.string(),
-    folderIds: v.array(v.id("folders")),
-  }).index("by_user", ["userId"]),
-
-  messages: defineTable({
-    chatId: v.id("chats"),
-    role: v.union(v.literal("user"), v.literal("assistant")),
-    content: v.string(),
-    citations: v.optional(
-      v.array(
-        v.object({
-          chunkId: v.string(),
-          fileId: v.id("files"),
-          startChar: v.number(),
-          endChar: v.number(),
-          text: v.string(),
-        }),
-      ),
-    ),
-    toolTrace: v.optional(
-      v.array(
-        v.object({
-          name: v.string(),
-          input: v.any(),
-          output: v.optional(v.any()),
-        }),
-      ),
-    ),
-  }).index("by_chat", ["chatId"]),
+    folderId: v.id("folders"),
+    // Agent component thread id (string, opaque to us).
+    threadId: v.string(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_thread", ["threadId"]),
 });

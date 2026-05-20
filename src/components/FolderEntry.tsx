@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { readSession } from "../lib/session";
+import { ChatPanel } from "./ChatPanel";
 
 type DriveFolder = { id: string; name: string; modifiedTime?: string };
 
@@ -196,7 +197,15 @@ export function FolderEntry() {
       )}
 
       {activeFolderId && (
-        <FileList token={token} folderId={activeFolderId as any} />
+        <>
+          <FileList token={token} folderId={activeFolderId as any} />
+          <ChatPanel
+            folderId={activeFolderId as any}
+            folderName={
+              folders?.find((f) => f._id === activeFolderId)?.name ?? ""
+            }
+          />
+        </>
       )}
     </div>
   );

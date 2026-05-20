@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.78",
     "@ai-sdk/openai": "^3.0.64",
     "@convex-dev/agent": "^0.6.1",
     "@convex-dev/persistent-text-streaming": "^0.3.2",
@@ -23,7 +24,8 @@
     "react-dom": "^19.2.6",
     "react-router": "^7.15.1",
     "unpdf": "^1.6.2",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
