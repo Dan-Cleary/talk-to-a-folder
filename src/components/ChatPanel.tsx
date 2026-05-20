@@ -5,6 +5,8 @@ import { api } from "../../convex/_generated/api";
 import { readSession } from "../lib/session";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MessageContent } from "./MessageContent";
+import { friendlyError } from "../lib/errors";
+import { useToast } from "../lib/toast";
 
 type Props = {
   folderId: Id<"folders">;
@@ -16,6 +18,7 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
   const token = readSession() ?? "";
   const createChat = useAction(api.chats.create);
   const ask = useAction(api.chats.ask);
+  const toast = useToast();
 
   const [threadId, setThreadId] = useState<string | null>(null);
   const [chatId, setChatId] = useState<Id<"chats"> | null>(null);
@@ -33,7 +36,7 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
         setThreadId(r.threadId);
         setChatId(r.chatId);
       })
-      .catch((e) => !cancelled && setError((e as Error).message));
+      .catch((e) => !cancelled && setError(friendlyError(e)));
     return () => {
       cancelled = true;
     };
@@ -46,10 +49,25 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
     { initialNumItems: 50, stream: true },
   );
 
-  const uiMessages = useMemo(
-    () => toUIMessages(messagesQuery.results ?? []),
-    [messagesQuery.results],
-  );
+  const uiMessages = useMemo(() => {
+    const all = toUIMessages(messagesQuery.results ?? []);
+    // Skip assistant messages that have no rendered text yet — the typing
+    // indicator covers that state without an empty grey bubble.
+    return all.filter((m: any) => {
+      if (m.role !== "assistant") return true;
+      const text = (m.parts ?? [])
+        .filter((p: any) => p.type === "text")
+        .map((p: any) => p.text)
+        .join("");
+      return text.trim().length > 0;
+    });
+  }, [messagesQuery.results]);
+
+  const lastMessageIsLiveAssistant = useMemo(() => {
+    const last = uiMessages[uiMessages.length - 1];
+    if (!last || last.role !== "assistant") return false;
+    return (last as any).status === "streaming";
+  }, [uiMessages]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -66,7 +84,9 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
     try {
       await ask({ token, chatId, prompt });
     } catch (e) {
-      setError((e as Error).message);
+      const msg = friendlyError(e);
+      setError(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(false);
     }
@@ -90,7 +110,7 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
             onCitationClick={onCitationOpen}
           />
         ))}
-        {busy && !lastIsStreamingAssistant(uiMessages) && <TypingIndicator />}
+        {busy && !lastMessageIsLiveAssistant && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 
@@ -122,12 +142,6 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
       </form>
     </div>
   );
-}
-
-function lastIsStreamingAssistant(messages: any[]): boolean {
-  const last = messages[messages.length - 1];
-  if (!last) return false;
-  return last.role === "assistant" && last.status === "streaming";
 }
 
 function TypingIndicator() {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { friendlyError } from "../lib/errors";
+import { useToast } from "../lib/toast";
 
 type DriveFolder = { id: string; name: string; modifiedTime?: string };
 
@@ -20,6 +22,7 @@ export function AddFolderDialog({
 }: Props) {
   const add = useAction(api.folders.add);
   const browse = useAction(api.folders.browseDriveFolders);
+  const toast = useToast();
 
   const [pasteInput, setPasteInput] = useState("");
   const [search, setSearch] = useState("");
@@ -61,7 +64,9 @@ export function AddFolderDialog({
       const { folderId } = await add({ token, input });
       onAdded(folderId);
     } catch (e) {
-      setPasteError((e as Error).message);
+      const msg = friendlyError(e);
+      setPasteError(msg);
+      toast.push("error", msg);
     } finally {
       setBusy(null);
     }
