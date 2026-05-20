@@ -5,14 +5,15 @@ import { api } from "../../convex/_generated/api";
 import { readSession } from "../lib/session";
 import type { Id } from "../../convex/_generated/dataModel";
 import { MessageContent } from "./MessageContent";
-import { CitationPanel } from "./CitationPanel";
 
 type Props = {
   folderId: Id<"folders">;
   folderName: string;
+  onCitationOpen: (cid: string) => void;
+  openCid: string | null;
 };
 
-export function ChatPanel({ folderId, folderName }: Props) {
+export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
   const token = readSession() ?? "";
   const createChat = useAction(api.chats.create);
   const ask = useAction(api.chats.ask);
@@ -22,9 +23,7 @@ export function ChatPanel({ folderId, folderName }: Props) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openCid, setOpenCid] = useState<string | null>(null);
 
-  // Create a thread the first time the user opens chat for this folder.
   useEffect(() => {
     let cancelled = false;
     setThreadId(null);
@@ -75,44 +74,35 @@ export function ChatPanel({ folderId, folderName }: Props) {
   };
 
   return (
-    <div className="flex flex-col border border-[var(--color-border)] rounded-md overflow-hidden h-[600px]">
-      <header className="px-4 py-2 border-b border-[var(--color-border)] bg-gray-50">
-        <h3 className="text-sm font-medium">
-          Chat with <span className="font-semibold">{folderName}</span>
-        </h3>
-      </header>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {uiMessages.length === 0 && (
-          <p className="text-sm text-[var(--color-muted)]">
-            Ask a question about the files in this folder.
-          </p>
+          <div className="text-center text-[var(--color-muted)] mt-12 space-y-2">
+            <p className="text-sm">Ask anything about {folderName}.</p>
+            <p className="text-xs">
+              Try: <em>"What's in here?"</em> or <em>"Summarize each file."</em>
+            </p>
+          </div>
         )}
         {uiMessages.map((m) => (
           <MessageBubble
             key={m.id ?? m.key}
             message={m}
-            onCitationClick={setOpenCid}
+            onCitationClick={onCitationOpen}
           />
         ))}
         <div ref={bottomRef} />
       </div>
 
-      <CitationPanel
-        folderId={folderId}
-        cid={openCid}
-        onClose={() => setOpenCid(null)}
-      />
-
       {error && (
-        <p className="px-4 py-2 text-sm text-red-500 border-t border-[var(--color-border)]">
+        <p className="px-6 py-2 text-sm text-red-500 border-t border-[var(--color-border)]">
           {error}
         </p>
       )}
 
       <form
         onSubmit={onSubmit}
-        className="flex gap-2 p-3 border-t border-[var(--color-border)]"
+        className="flex gap-2 p-4 border-t border-[var(--color-border)]"
       >
         <input
           type="text"
