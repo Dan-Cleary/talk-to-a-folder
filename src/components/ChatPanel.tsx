@@ -128,7 +128,7 @@ export function ChatPanel({ folderId, folderName, onCitationOpen }: Props) {
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto space-y-6">
           {uiMessages.length === 0 && !pendingUserPrompt && (
