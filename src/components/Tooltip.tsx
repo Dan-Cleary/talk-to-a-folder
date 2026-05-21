@@ -2,23 +2,32 @@ import type { ReactNode } from "react";
 
 type Props = {
   label: string;
-  side?: "top" | "bottom";
+  side?: "top" | "bottom" | "left" | "right";
   children: ReactNode;
 };
 
 /**
  * Lightweight CSS-only tooltip. Wrap a button/icon, set `label` to the
- * hover text. Appears above by default; pass side="bottom" to flip.
+ * hover text. Pass `side` to control placement — pick whichever direction
+ * is least likely to clip against a scroll container boundary.
  */
 export function Tooltip({ label, side = "top", children }: Props) {
   const positionClass =
     side === "top"
       ? "bottom-full mb-1.5 left-1/2 -translate-x-1/2"
-      : "top-full mt-1.5 left-1/2 -translate-x-1/2";
+      : side === "bottom"
+        ? "top-full mt-1.5 left-1/2 -translate-x-1/2"
+        : side === "left"
+          ? "right-full mr-1.5 top-1/2 -translate-y-1/2"
+          : "left-full ml-1.5 top-1/2 -translate-y-1/2";
   const arrowClass =
     side === "top"
       ? "top-full left-1/2 -translate-x-1/2 border-t-gray-900 border-l-transparent border-r-transparent border-b-transparent"
-      : "bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-l-transparent border-r-transparent border-t-transparent";
+      : side === "bottom"
+        ? "bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-l-transparent border-r-transparent border-t-transparent"
+        : side === "left"
+          ? "left-full top-1/2 -translate-y-1/2 border-l-gray-900 border-t-transparent border-b-transparent border-r-transparent"
+          : "right-full top-1/2 -translate-y-1/2 border-r-gray-900 border-t-transparent border-b-transparent border-l-transparent";
 
   return (
     <span className="relative inline-flex group/tt">

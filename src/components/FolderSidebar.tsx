@@ -104,7 +104,7 @@ export function FolderSidebar({
             {folders.map((f) => (
               <li key={f._id} className="group/row">
                 <div
-                  className={`relative w-full text-sm flex items-center gap-2 ${
+                  className={`relative w-full text-sm flex items-center ${
                     activeFolderId === f._id
                       ? "bg-[var(--color-accent-bg)]"
                       : "hover:bg-gray-100"
@@ -112,46 +112,43 @@ export function FolderSidebar({
                 >
                   <button
                     onClick={() => onSelect(f._id)}
-                    className={`flex-1 text-left px-4 py-2 truncate ${
+                    className={`flex-1 min-w-0 text-left px-4 py-2 flex items-center gap-2.5 ${
                       activeFolderId === f._id
                         ? "text-[var(--color-accent)] font-medium"
                         : ""
                     }`}
                   >
-                    {f.name}
-                  </button>
-                  <div className="flex items-center gap-1 pr-2">
-                    {/* Status dot — always visible, just informational */}
-                    <Tooltip label={STATUS_TOOLTIP[f.status]}>
+                    <Tooltip label={STATUS_TOOLTIP[f.status]} side="right">
                       <StatusDot status={f.status} />
                     </Tooltip>
-                    {/* Action buttons — only on row hover */}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                      <Tooltip label="Re-sync from Drive">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void onReindex(f._id);
-                          }}
-                          className="text-[var(--color-muted)] hover:text-[var(--color-fg)] p-1.5 rounded-md hover:bg-white transition-colors"
-                          aria-label="Re-sync from Drive"
-                        >
-                          <RefreshIcon />
-                        </button>
-                      </Tooltip>
-                      <Tooltip label="Remove folder">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDelete(f._id);
-                          }}
-                          className="text-[var(--color-muted)] hover:text-red-500 p-1.5 rounded-md hover:bg-white transition-colors"
-                          aria-label="Remove folder"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </Tooltip>
-                    </div>
+                    <span className="truncate">{f.name}</span>
+                  </button>
+                  {/* Action buttons — only on row hover */}
+                  <div className="flex items-center gap-0.5 pr-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                    <Tooltip label="Re-sync from Drive" side="left">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void onReindex(f._id);
+                        }}
+                        className="text-[var(--color-muted)] hover:text-[var(--color-fg)] p-1.5 rounded-md hover:bg-white transition-colors"
+                        aria-label="Re-sync from Drive"
+                      >
+                        <RefreshIcon />
+                      </button>
+                    </Tooltip>
+                    <Tooltip label="Remove folder" side="left">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(f._id);
+                        }}
+                        className="text-[var(--color-muted)] hover:text-red-500 p-1.5 rounded-md hover:bg-white transition-colors"
+                        aria-label="Remove folder"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </Tooltip>
                   </div>
                 </div>
               </li>
