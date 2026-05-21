@@ -102,7 +102,7 @@ export function FolderSidebar({
         ) : (
           <ul>
             {folders.map((f) => (
-              <li key={f._id} className="group">
+              <li key={f._id} className="group/row">
                 <div
                   className={`relative w-full text-sm flex items-center gap-2 ${
                     activeFolderId === f._id
@@ -121,33 +121,37 @@ export function FolderSidebar({
                     {f.name}
                   </button>
                   <div className="flex items-center gap-1 pr-2">
+                    {/* Status dot — always visible, just informational */}
                     <Tooltip label={STATUS_TOOLTIP[f.status]}>
                       <StatusDot status={f.status} />
                     </Tooltip>
-                    <Tooltip label="Re-sync from Drive">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void onReindex(f._id);
-                        }}
-                        className="text-[var(--color-muted)] hover:text-[var(--color-fg)] p-1.5 rounded-md hover:bg-white transition-colors"
-                        aria-label="Re-sync from Drive"
-                      >
-                        <RefreshIcon />
-                      </button>
-                    </Tooltip>
-                    <Tooltip label="Remove folder">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete(f._id);
-                        }}
-                        className="text-[var(--color-muted)] hover:text-red-500 p-1.5 rounded-md hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
-                        aria-label="Remove folder"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </Tooltip>
+                    {/* Action buttons — only on row hover */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                      <Tooltip label="Re-sync from Drive">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void onReindex(f._id);
+                          }}
+                          className="text-[var(--color-muted)] hover:text-[var(--color-fg)] p-1.5 rounded-md hover:bg-white transition-colors"
+                          aria-label="Re-sync from Drive"
+                        >
+                          <RefreshIcon />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label="Remove folder">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete(f._id);
+                          }}
+                          className="text-[var(--color-muted)] hover:text-red-500 p-1.5 rounded-md hover:bg-white transition-colors"
+                          aria-label="Remove folder"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
               </li>

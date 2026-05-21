@@ -28,7 +28,10 @@ export function AddFolderDialog({
   const [pasteInput, setPasteInput] = useState("");
   const [search, setSearch] = useState("");
   const [drive, setDrive] = useState<DriveFolder[] | null>(null);
-  const [browseLoading, setBrowseLoading] = useState(false);
+  // Start in loading state — the initial fetch is always fired below.
+  // Prevents a single-frame "No matches" flash before the debounced fetch
+  // actually starts.
+  const [browseLoading, setBrowseLoading] = useState(true);
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
@@ -36,8 +39,10 @@ export function AddFolderDialog({
   // Initial fetch + debounced search.
   useEffect(() => {
     let cancelled = false;
+    setBrowseLoading(true);
+    // Debounce typing — but keep the spinner visible the whole time so the
+    // empty-state never flashes mid-fetch.
     const t = setTimeout(() => {
-      setBrowseLoading(true);
       browse({ token, search: search || undefined })
         .then((r) => !cancelled && setDrive(r))
         .catch((e) => !cancelled && setBrowseError((e as Error).message))

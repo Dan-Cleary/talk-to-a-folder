@@ -19,7 +19,7 @@ function Shell() {
   const { user, loading } = useCurrentUser();
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ height: "100dvh" }}>
       <header className="border-b border-[var(--color-border)] px-6 py-3 flex items-center justify-between bg-white">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-[var(--color-accent)] flex items-center justify-center text-white text-xs font-bold">
@@ -55,7 +55,7 @@ function Shell() {
         </div>
       </header>
 
-      <main className="flex-1 flex">
+      <main className="flex-1 flex min-h-0 overflow-hidden">
         {user ? (
           <Workspace />
         ) : (

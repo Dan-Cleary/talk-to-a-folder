@@ -7,6 +7,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { MessageContent } from "./MessageContent";
 import { friendlyError } from "../lib/errors";
 import { useToast } from "../lib/toast";
+import { Tooltip } from "./Tooltip";
 
 type Props = {
   folderId: Id<"folders">;
@@ -268,7 +269,7 @@ function MessageRow({
   }
   // Assistant — no bubble, just text. Matches the ChatGPT pattern.
   return (
-    <div className="text-sm leading-relaxed text-[var(--color-fg)]">
+    <div className="group/msg text-sm leading-relaxed text-[var(--color-fg)]">
       <MessageContent
         text={text}
         variant="assistant"
@@ -277,6 +278,72 @@ function MessageRow({
       {streaming && (
         <span className="inline-block w-1.5 h-4 bg-[var(--color-fg)] opacity-50 animate-pulse ml-1 align-middle" />
       )}
+      {!streaming && text.trim() && (
+        <div className="mt-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+          <CopyButton text={text} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  // Strip our citation markers from the copied text — those are app-internal.
+  const cleanText = text.replace(/\[cid:[^\]]+\]/g, "").trim();
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(cleanText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Ignore — clipboard API can fail in non-secure contexts.
+    }
+  };
+  return (
+    <Tooltip label={copied ? "Copied" : "Copy"}>
+      <button
+        onClick={onCopy}
+        aria-label="Copy message"
+        className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-fg)] hover:bg-gray-100 transition-colors"
+      >
+        {copied ? <CheckIcon /> : <CopyIcon />}
+      </button>
+    </Tooltip>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="rgb(22, 163, 74)"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }

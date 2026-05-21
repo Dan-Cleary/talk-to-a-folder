@@ -21,11 +21,11 @@ export function Tooltip({ label, side = "top", children }: Props) {
       : "bottom-full left-1/2 -translate-x-1/2 border-b-gray-900 border-l-transparent border-r-transparent border-t-transparent";
 
   return (
-    <span className="relative inline-flex group">
+    <span className="relative inline-flex group/tt">
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute ${positionClass} px-2 py-1 rounded-md bg-gray-900 text-white text-[11px] font-medium whitespace-nowrap opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-100 origin-center z-50 shadow-lg`}
+        className={`pointer-events-none absolute ${positionClass} px-2 py-1 rounded-md bg-gray-900 text-white text-[11px] font-medium whitespace-nowrap opacity-0 scale-95 group-hover/tt:opacity-100 group-hover/tt:scale-100 transition-all duration-100 origin-center z-50 shadow-lg`}
       >
         {label}
         <span
